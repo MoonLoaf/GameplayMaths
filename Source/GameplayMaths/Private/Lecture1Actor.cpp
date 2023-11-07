@@ -1,5 +1,4 @@
 #include "Lecture1Actor.h"
-#include "Constants.h"
 #include "Kismet/GameplayStatics.h"
 
 ALecture1Actor::ALecture1Actor()
@@ -9,8 +8,6 @@ ALecture1Actor::ALecture1Actor()
 	
 	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	
-	//UMaterialInterface* BaseMaterial = StaticMeshComponent->GetMaterial(0);
-	//DynamicMaterialInstance = UMaterialInstanceDynamic::Create(BaseMaterial, this);
 }
 
 void ALecture1Actor::BeginPlay()
@@ -32,7 +29,14 @@ void ALecture1Actor::Tick(float DeltaTime)
 	Demonstrators.Empty();
 	Demonstrators = GetDemonstrators(GetWorld());
 
+
+	/*
+	// Determine size based on distance to average position of all actors.
+	*/
 	FVector AveragePosition = CalculateAveragePosition(Demonstrators);
+	
+	//Debug average position
+	DrawDebugBox(GetWorld(), AveragePosition, FVector(100.f, 100.f, 100.f), FColor::Red, false, -1, -1, 10.f);
 	FVector Diff = GetActorLocation() - AveragePosition;
 
 	float Distance = Diff.Size();
@@ -41,15 +45,34 @@ void ALecture1Actor::Tick(float DeltaTime)
 	float ScaleFactor = FMath::Lerp(2.0f, 0.0f, NormalizedDistance);
 
 	SetActorScale3D(FVector(ScaleFactor, ScaleFactor, ScaleFactor));
+	
+	FVector MinPosition = FVector(FLT_MAX, FLT_MAX, FLT_MAX);
+	FVector MaxPosition = FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
-	//Calculate average rotation
+	/*
+	// Determine color based on each actors position in relation to all other actors
+	*/
+	for (const AActor* Actor : Demonstrators)
+	{
+		MinPosition = FVector::Min(MinPosition, Actor->GetActorLocation());
+		MaxPosition = FVector::Max(MaxPosition, Actor->GetActorLocation());
+	}
 
-	//float value = 10;
+	const FVector GridSize = MaxPosition - MinPosition;
+	FVector NormalizedPosition = (GetActorLocation() - MinPosition) / GridSize;
 
-	//DynamicMaterialInstance->SetScalarParameterValue(TEXT("FinalColor"), value);
-	//StaticMeshComponent->SetMaterial(0, DynamicMaterialInstance);
+	FLinearColor Color;
 
+	Color.R = FMath::Lerp(0.f, 1.f, NormalizedPosition.X);
+	Color.G = FMath::Lerp(0.f, 1.f, NormalizedPosition.Y);
+	Color.B = 1.f - FMath::Lerp(0.f, 1.f, NormalizedPosition.X);
 
+	FVector4 ColorVector = FVector4(Color.R, Color.G, Color.B, 1.f);
+
+	DynamicMaterialInstance = StaticMeshComponent->CreateDynamicMaterialInstance(0);
+	DynamicMaterialInstance->SetVectorParameterValue(TEXT("FinalColor"), ColorVector);
+	
+	//Debug Arc
 	if(!DrawArc)
 		return;
 	
@@ -57,8 +80,8 @@ void ALecture1Actor::Tick(float DeltaTime)
 		GetWorld(),
 		GetActorLocation(),
 		GetActorForwardVector(),
-		CONST_Range,
-		FMath::DegreesToRadians(CONST_Angle * .5f),
+		Range,
+		FMath::DegreesToRadians(Angle * .5f),
 		0.f,
 		1,
 		FColor::Green

@@ -21,15 +21,21 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Base")
 	UStaticMeshComponent* StaticMeshComponent;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Context")
-	bool DrawArc;
-
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Context")
 	TArray<AActor*> Demonstrators;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Context")
 	float MaxDistance = 5000;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Arc")
+	bool DrawArc;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Arc")
+	float Angle = 45;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Arc")
+	float Range = 5000;
 
 protected:
 
@@ -39,9 +45,4 @@ private:
 	static TArray<AActor*> GetDemonstrators(UWorld* World);
 
 	FVector CalculateAveragePosition(TArray<AActor*> Actors);
-	
-	// Make these get different color based on how close they are to other ones
-	// Determine the size based on whether each object is facing the same directions
-	//Smallest size being the average direction negated and largest being having the average direction vector
-
 };
