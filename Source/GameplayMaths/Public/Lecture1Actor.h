@@ -22,6 +22,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Base")
 	UStaticMeshComponent* StaticMeshComponent;
 	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Debug")
+    bool DrawAveragePosition = false;
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Context")
 	TArray<AActor*> Demonstrators;
 	

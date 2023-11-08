@@ -35,8 +35,11 @@ void ALecture1Actor::Tick(float DeltaTime)
 	*/
 	FVector AveragePosition = CalculateAveragePosition(Demonstrators);
 	
-	//Debug average position
-	DrawDebugBox(GetWorld(), AveragePosition, FVector(100.f, 100.f, 100.f), FColor::Red, false, -1, -1, 10.f);
+	//Debug average position of all demonstrators, only has to be true for one
+	if(DrawAveragePosition)
+	{
+		DrawDebugBox(GetWorld(), AveragePosition, FVector(100.f, 100.f, 100.f), FColor::Red, false, -1, -1, 10.f);
+	}
 	FVector Diff = GetActorLocation() - AveragePosition;
 
 	float Distance = Diff.Size();
