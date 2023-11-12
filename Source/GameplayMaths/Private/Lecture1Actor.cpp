@@ -1,4 +1,5 @@
 #include "Lecture1Actor.h"
+
 #include "Kismet/GameplayStatics.h"
 
 ALecture1Actor::ALecture1Actor()
@@ -7,6 +8,7 @@ ALecture1Actor::ALecture1Actor()
 	PrimaryActorTick.bStartWithTickEnabled = true;
 	
 	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
+	StaticMeshComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	
 }
 
@@ -31,8 +33,10 @@ void ALecture1Actor::Tick(float DeltaTime)
 
 
 	/*
-	// Determine size based on distance to average position of all actors.
-	*/
+	 * Lecture 1
+	 * Determine size based on distance to average position of all actors.
+	 * Context being each actor position in relation to the group of actors
+	 */
 	FVector AveragePosition = CalculateAveragePosition(Demonstrators);
 	
 	//Debug average position of all demonstrators, only has to be true for one
@@ -46,15 +50,18 @@ void ALecture1Actor::Tick(float DeltaTime)
 	float NormalizedDistance = FMath::Clamp(Distance / MaxDistance, 0.0f, 1.0f);
 
 	float ScaleFactor = FMath::Lerp(2.0f, 0.0f, NormalizedDistance);
-
-	SetActorScale3D(FVector(ScaleFactor, ScaleFactor, ScaleFactor));
+	FVector ScaleVector = FVector(ScaleFactor, ScaleFactor, ScaleFactor);
+	
+	SetActorScale3D(ScaleVector);
 	
 	FVector MinPosition = FVector(FLT_MAX, FLT_MAX, FLT_MAX);
 	FVector MaxPosition = FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
 	/*
-	// Determine color based on each actors position in relation to all other actors
-	*/
+	 * Lecture 2
+	 * Determine color based on each actors position in relation to all other actors
+	 * Lerp Colors based on this information
+	 */
 	for (const AActor* Actor : Demonstrators)
 	{
 		MinPosition = FVector::Min(MinPosition, Actor->GetActorLocation());
@@ -71,9 +78,41 @@ void ALecture1Actor::Tick(float DeltaTime)
 	Color.B = 1.f - FMath::Lerp(0.f, 1.f, NormalizedPosition.X);
 
 	FVector4 ColorVector = FVector4(Color.R, Color.G, Color.B, 1.f);
+	
+	/*
+	 * Check for intersection
+	 */
 
+	FVector Center = GetActorLocation();
+	MinBounds = Center - ScaleVector * 0.5f * MeshSize;
+	MaxBounds = Center + ScaleVector * 0.5f * MeshSize;
+
+	DrawDebugBox(GetWorld(), Center, ScaleVector * .5f * MeshSize, FColor::Orange, false, -1, -1, 10.f);
+
+	for (const AActor* OtherActor : Demonstrators)
+	{
+		if (OtherActor == this)
+		{
+			// Skip intersection check for the current actor
+			continue;
+		}
+		const ALecture1Actor* other = Cast<ALecture1Actor>(OtherActor);
+
+		if(other)
+		{
+			FVector MinBoundsOtherActor = other->MinBounds;
+			FVector MaxBoundsOtherActor = other->MaxBounds;
+
+			if (AreBoxesIntersecting(MinBounds, MaxBounds, MinBoundsOtherActor, MaxBoundsOtherActor))
+			{
+				ColorVector = FVector4(1.0f - ColorVector.X, 1.0f - ColorVector.Y, 1.0f - ColorVector.Z, 1.0f);
+			}
+		}
+	}
+	
+	//Set color based on intersection 
 	DynamicMaterialInstance = StaticMeshComponent->CreateDynamicMaterialInstance(0);
-	DynamicMaterialInstance->SetVectorParameterValue(TEXT("FinalColor"), ColorVector);
+    DynamicMaterialInstance->SetVectorParameterValue(TEXT("FinalColor"), ColorVector);
 	
 	//Debug Arc
 	if(!DrawArc)
@@ -122,6 +161,21 @@ FVector ALecture1Actor::CalculateAveragePosition(TArray<AActor*> Actors)
 	}
 
 	return TotalPosition;
+}
+
+bool ALecture1Actor::AreBoxesIntersecting(const FVector& MinBounds1, const FVector& MaxBounds1, const FVector& MinBounds2, const FVector& MaxBounds2)
+{
+	// Check for intersection along the X-axis
+	bool xIntersect = MaxBounds1.X >= MinBounds2.X && MinBounds1.X <= MaxBounds2.X;
+
+	// Check for intersection along the Y-axis
+	bool yIntersect = MaxBounds1.Y >= MinBounds2.Y && MinBounds1.Y <= MaxBounds2.Y;
+
+	// Check for intersection along the Z-axis
+	bool zIntersect = MaxBounds1.Z >= MinBounds2.Z && MinBounds1.Z <= MaxBounds2.Z;
+
+	// If there is intersection along all axes, the boxes intersect
+	return xIntersect && yIntersect && zIntersect;
 }
 
 bool ALecture1Actor::ShouldTickIfViewportsOnly() const

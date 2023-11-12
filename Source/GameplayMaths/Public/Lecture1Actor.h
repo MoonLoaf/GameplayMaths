@@ -4,7 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Lecture1Actor.generated.h"
 
-UCLASS(hidecategories=(Input, Movement, Collision, Rendering, HLOD, WorldPartition, DataLayers, Replication, Physics, Networking, Actor, LevelInstance, Cooking))
+UCLASS(hidecategories=(Input, Actor, Collision, Rendering, HLOD, WorldPartition, DataLayers, Replication, Physics, Networking, LevelInstance, Cooking))
 class GAMEPLAYMATHS_API ALecture1Actor : public AActor
 {
 	GENERATED_BODY()
@@ -40,6 +40,14 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Arc")
 	float Range = 5000;
 
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category="Intersection")
+	float MeshSize = 250;
+
+	bool bAreBoxesIntersecting;
+	
+	FVector MinBounds;
+	FVector MaxBounds;
+
 protected:
 
 	UMaterialInstanceDynamic* DynamicMaterialInstance;
@@ -48,4 +56,10 @@ private:
 	static TArray<AActor*> GetDemonstrators(UWorld* World);
 
 	FVector CalculateAveragePosition(TArray<AActor*> Actors);
+	
+	bool AreBoxesIntersecting(
+		const FVector& MinBounds1,
+		const FVector& MaxBounds1,
+		const FVector& MinBounds2,
+		const FVector& MaxBounds2);
 };
