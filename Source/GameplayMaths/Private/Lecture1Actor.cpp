@@ -9,7 +9,13 @@ ALecture1Actor::ALecture1Actor()
 	
 	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	StaticMeshComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
-	
+
+	float rand;
+	do {
+		rand = FMath::RandRange(-600.f, 600.f);
+	} while (FMath::IsWithinInclusive(rand, -200.f, 200.f));
+
+	Velocity = FVector(rand, 0.f, 0.f);
 }
 
 void ALecture1Actor::BeginPlay()
@@ -22,15 +28,33 @@ void ALecture1Actor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	const FVector Cross = FVector::CrossProduct(GetActorForwardVector(), GetActorRightVector());
+	if (FMath::Abs(GetActorLocation().X) >= 6000 || FMath::Abs(GetActorLocation().Y) >= 6000)
+	{
+		// Set actor's location to random XY values within -5000 and 5000
+		SetActorLocation(FVector(
+			FMath::RandRange(-5000.f, 5000.f),
+			FMath::RandRange(-5000.f, 5000.f),
+			GetActorLocation().Z
+		));
+	}
 
-	DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + GetActorForwardVector() * 1000.f, FColor::Red);
-	DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + GetActorRightVector() * 1000.f, FColor::Green);
-	DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + Cross * 1000.f, FColor::Blue);
+	if(CollisionCooldown > 0)
+	{
+		CollisionCooldown -= DeltaTime;
+		CollisionCooldown = FMath::Max(CollisionCooldown, 0.0f);
+	}
+
+	if(bDrawXYZ)
+	{
+		const FVector Cross = FVector::CrossProduct(GetActorForwardVector(), GetActorRightVector());
+
+		DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + GetActorForwardVector() * 1000.f, FColor::Red);
+		DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + GetActorRightVector() * 1000.f, FColor::Green);
+		DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + Cross * 1000.f, FColor::Blue);
+	}
 
 	Demonstrators.Empty();
 	Demonstrators = GetDemonstrators(GetWorld());
-
 
 	/*
 	 * Lecture 1
@@ -40,16 +64,17 @@ void ALecture1Actor::Tick(float DeltaTime)
 	FVector AveragePosition = CalculateAveragePosition(Demonstrators);
 	
 	//Debug average position of all demonstrators, only has to be true for one
-	if(DrawAveragePosition)
+	if(bDrawAveragePosition)
 	{
 		DrawDebugBox(GetWorld(), AveragePosition, FVector(100.f, 100.f, 100.f), FColor::Red, false, -1, -1, 10.f);
 	}
+	
 	FVector Diff = GetActorLocation() - AveragePosition;
 
 	float Distance = Diff.Size();
 	float NormalizedDistance = FMath::Clamp(Distance / MaxDistance, 0.0f, 1.0f);
 
-	float ScaleFactor = FMath::Lerp(2.0f, 0.0f, NormalizedDistance);
+	ScaleFactor = FMath::Lerp(3.0f, 0.1f, NormalizedDistance);
 	FVector ScaleVector = FVector(ScaleFactor, ScaleFactor, ScaleFactor);
 	
 	SetActorScale3D(ScaleVector);
@@ -83,36 +108,105 @@ void ALecture1Actor::Tick(float DeltaTime)
 	 * Check for intersection
 	 */
 
-	FVector Center = GetActorLocation();
-	MinBounds = Center - ScaleVector * 0.5f * MeshSize;
-	MaxBounds = Center + ScaleVector * 0.5f * MeshSize;
-
-	DrawDebugBox(GetWorld(), Center, ScaleVector * .5f * MeshSize, FColor::Orange, false, -1, -1, 10.f);
-
-	for (const AActor* OtherActor : Demonstrators)
+	if(ColliderType == ECollisionType::AABB)
 	{
-		if (OtherActor == this)
+		FVector Center = GetActorLocation();
+		MinBounds = Center - ScaleVector * 0.5f * MeshSize;
+		MaxBounds = Center + ScaleVector * 0.5f * MeshSize;
+
+		if(bDrawIntersection)
 		{
-			// Skip intersection check for the current actor
-			continue;
+			DrawDebugBox(GetWorld(), Center, ScaleVector * .5f * MeshSize, FColor::Orange, false, -1, -1, 10.f);
 		}
-		const ALecture1Actor* other = Cast<ALecture1Actor>(OtherActor);
 
-		if(other)
+		for (const AActor* OtherActor : Demonstrators)
 		{
-			FVector MinBoundsOtherActor = other->MinBounds;
-			FVector MaxBoundsOtherActor = other->MaxBounds;
-
-			if (AreBoxesIntersecting(MinBounds, MaxBounds, MinBoundsOtherActor, MaxBoundsOtherActor))
+			if (OtherActor == this)
 			{
-				ColorVector = FVector4(1.0f - ColorVector.X, 1.0f - ColorVector.Y, 1.0f - ColorVector.Z, 1.0f);
+				// Skip intersection check for the current actor
+				continue;
+			}
+			const ALecture1Actor* other = Cast<ALecture1Actor>(OtherActor);
+
+			if(other)
+			{
+				if(other->ColliderType == ECollisionType::AABB)
+				{
+					FVector MinBoundsOtherActor = other->MinBounds;
+					FVector MaxBoundsOtherActor = other->MaxBounds;
+
+					if (AreBoxesIntersecting(MinBounds, MaxBounds, MinBoundsOtherActor, MaxBoundsOtherActor))
+					{
+						ColorVector = FVector4(1.0f - ColorVector.X, 1.0f - ColorVector.Y, 1.0f - ColorVector.Z, 1.0f);
+					}
+				}
+				else
+				{
+					FVector SphereCenterOtherActor = other->GetActorLocation();
+					float SphereRadiusOtherActor = other->ScaleFactor *  0.5f * other->MeshSize;
+
+					if(IsSphereAABBIntersecting(SphereCenterOtherActor, SphereRadiusOtherActor, MinBounds, MaxBounds))
+					{
+						ColorVector = FVector4(1.0f - ColorVector.X, 1.0f - ColorVector.Y, 1.0f - ColorVector.Z, 1.0f);
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		// Check for sphere-sphere and sphere-AABB collisions
+		FVector SphereCenter = GetActorLocation();
+		float SphereRadius = ScaleFactor * 0.5f * MeshSize;
+
+		if(bDrawIntersection)
+		{
+			DrawDebugSphere(GetWorld(), SphereCenter, SphereRadius, 8,  FColor::Orange, false, -1, -1, 10.f);
+		}
+
+		for (const AActor* OtherActor : Demonstrators)
+		{
+			if (OtherActor == this)
+			{
+				// Skip intersection check for the current actor
+				continue;
+			}
+			const ALecture1Actor* other = Cast<ALecture1Actor>(OtherActor);
+
+			if(other)
+			{
+				if(other->ColliderType == ECollisionType::Sphere)
+				{
+					// Check for sphere-sphere intersection
+					FVector SphereCenterOtherActor = other->GetActorLocation();
+					float SphereRadiusOtherActor = other->ScaleFactor * 0.5f * other->MeshSize; // Assuming MeshSize is the diameter of the sphere
+
+					if(AreSpheresIntersecting(SphereCenter, SphereRadius, SphereCenterOtherActor, SphereRadiusOtherActor))
+					{
+						ColorVector = FVector4(1.0f - ColorVector.X, 1.0f - ColorVector.Y, 1.0f - ColorVector.Z, 1.0f);
+					}
+				}
+				else if(other->ColliderType == ECollisionType::AABB)
+				{
+					// Check for sphere-AABB intersection
+					FVector MinBoundsOtherActor = other->MinBounds;
+					FVector MaxBoundsOtherActor = other->MaxBounds;
+
+					if(IsSphereAABBIntersecting(SphereCenter, SphereRadius, MinBoundsOtherActor, MaxBoundsOtherActor))
+					{
+						ColorVector = FVector4(1.0f - ColorVector.X, 1.0f - ColorVector.Y, 1.0f - ColorVector.Z, 1.0f);
+					}
+				}
 			}
 		}
 	}
 	
+	
 	//Set color based on information from intersection calculations and the positions relation to other actors
 	DynamicMaterialInstance = StaticMeshComponent->CreateDynamicMaterialInstance(0);
     DynamicMaterialInstance->SetVectorParameterValue(TEXT("FinalColor"), ColorVector);
+
+	AddActorWorldOffset(Velocity * DeltaTime);
 	
 	//Debug Arc
 	if(!DrawArc)
@@ -128,7 +222,6 @@ void ALecture1Actor::Tick(float DeltaTime)
 		1,
 		FColor::Green
 		);
-
 }
 
 TArray<AActor*> ALecture1Actor::GetDemonstrators(UWorld* World)
@@ -176,6 +269,27 @@ bool ALecture1Actor::AreBoxesIntersecting(const FVector& MinBounds1, const FVect
 
 	// If there is intersection along all axes, the boxes intersect
 	return xIntersect && yIntersect && zIntersect;
+}
+
+bool ALecture1Actor::AreSpheresIntersecting(const FVector& Center1, float Radius1, const FVector& Center2, float Radius2)
+{
+	float DistanceSquared = FVector::DistSquared(Center1, Center2);
+	float SumOfRadiiSquared = FMath::Square(Radius1 + Radius2);
+	return DistanceSquared <= SumOfRadiiSquared;
+}
+
+bool ALecture1Actor::IsSphereAABBIntersecting(const FVector& SphereCenter, float SphereRadius, const FVector& AABBMinBounds, const FVector& AABBMaxBounds)
+{
+	FVector ClosestPointInAABB = FVector(
+		FMath::Clamp(SphereCenter.X, AABBMinBounds.X, AABBMaxBounds.X),
+		FMath::Clamp(SphereCenter.Y, AABBMinBounds.Y, AABBMaxBounds.Y),
+		FMath::Clamp(SphereCenter.Z, AABBMinBounds.Z, AABBMaxBounds.Z)
+	);
+
+	float DistanceSquared = FVector::DistSquared(SphereCenter, ClosestPointInAABB);
+	float RadiusSquared = FMath::Square(SphereRadius);
+
+	return DistanceSquared <= RadiusSquared;
 }
 
 bool ALecture1Actor::ShouldTickIfViewportsOnly() const
