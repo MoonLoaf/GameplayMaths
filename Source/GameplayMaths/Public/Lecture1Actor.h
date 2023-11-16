@@ -29,6 +29,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Base")
 	UStaticMeshComponent* StaticMeshComponent;
 
+	//Apparently not the correct way to use this sort of enum but works anyway ¯\_(ツ)_/¯
+	//Used "Correctly" in PlaneCollider.h
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Intersection")
 	TEnumAsByte<ECollisionType> ColliderType;
 

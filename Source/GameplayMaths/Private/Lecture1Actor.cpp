@@ -110,6 +110,7 @@ void ALecture1Actor::Tick(float DeltaTime)
 
 	if(ColliderType == ECollisionType::AABB)
 	{
+		// Check for AABB-AABB and sphere-AABB collisions
 		FVector Center = GetActorLocation();
 		MinBounds = Center - ScaleVector * 0.5f * MeshSize;
 		MaxBounds = Center + ScaleVector * 0.5f * MeshSize;
@@ -201,8 +202,8 @@ void ALecture1Actor::Tick(float DeltaTime)
 		}
 	}
 	
-	
 	//Set color based on information from intersection calculations and the positions relation to other actors
+	//Also set noise variables based on actor movement 
 	DynamicMaterialInstance = StaticMeshComponent->CreateDynamicMaterialInstance(0);
     DynamicMaterialInstance->SetVectorParameterValue(TEXT("FinalColor"), ColorVector);
     DynamicMaterialInstance->SetScalarParameterValue(TEXT("Speed"), (Velocity.X + Velocity.Y) * MaterialMovement);
