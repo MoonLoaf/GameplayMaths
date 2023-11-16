@@ -24,6 +24,9 @@ public:
 	FVector Velocity = FVector(100.f, 0.f, 0.f);
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Base")
+	float MaterialMovement = 0.5f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Base")
 	UStaticMeshComponent* StaticMeshComponent;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Intersection")

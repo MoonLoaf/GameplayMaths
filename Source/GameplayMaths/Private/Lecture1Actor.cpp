@@ -205,6 +205,7 @@ void ALecture1Actor::Tick(float DeltaTime)
 	//Set color based on information from intersection calculations and the positions relation to other actors
 	DynamicMaterialInstance = StaticMeshComponent->CreateDynamicMaterialInstance(0);
     DynamicMaterialInstance->SetVectorParameterValue(TEXT("FinalColor"), ColorVector);
+    DynamicMaterialInstance->SetScalarParameterValue(TEXT("Speed"), (Velocity.X + Velocity.Y) * MaterialMovement);
 
 	AddActorWorldOffset(Velocity * DeltaTime);
 	
